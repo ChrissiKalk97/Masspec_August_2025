@@ -57,9 +57,9 @@ def parse_arguments():
 ################################################################################
 # PATH DEFINITIONS
 ################################################################################
-# filtered_peptide_df = '/Users/christina/Documents/own_data/Masspec/HUVEC_July_2025/analysis_results/huvec_PD_filtered_peptides.csv'
-# unfiltered_peptide_df = '/Users/christina/Documents/own_data/Masspec/HUVEC_July_2025/analysis_results/huvec_PD_before_quan_filtering_peptides.csv'
-# not_human_iso_filtered_df = '/Users/christina/Documents/own_data/Masspec/HUVEC_July_2025/analysis_results/huvec_PD_before_human_iso_filtering_peptides.csv'
+# filtered_peptide_df = '/Users/christina/Documents/own_data/Masspec/analysis_results/huvec_PD_filtered_peptides.csv'
+# unfiltered_peptide_df = '/Users/christina/Documents/own_data/Masspec/analysis_results/huvec_PD_before_quan_filtering_peptides.csv'
+# not_human_iso_filtered_df = '/Users/christina/Documents/own_data/Masspec/analysis_results/huvec_PD_before_human_iso_filtering_peptides.csv'
 # proteome_fasta_file = '/Users/christina/Documents/own_data/Masspec/20250327_AS_LC4_MAA_VLD_12420_01_iPS_TS_PeptideGroups/Homo sapiens (sp_incl_isoforms TaxID=9606) - [Release=408].fasta'
 # so_pipe_proteome_fasta = '/Users/christina/Documents/ExtendedSplitORFPipeline-master_13_11_23/Input2023/TSL_filtered/protein_coding_peptide_sequences_110_tsl_refseq_filtered.fa'
 # cell_type = 'huvec'
@@ -124,14 +124,28 @@ def main(filtered_peptide_df, not_human_iso_filtered_df,
     peptides_df['Not unique SO input'] = peptides_df['Sequence'].apply(
         lambda x: x in so_proteome_peptide_set)
 
+    print('Number of unique SO peptides after filtering by Ensembl reference:',
+          len(peptides_df[peptides_df['Not unique SO input'] == False].index))
+
+    print('Number of unqiue peptides in both Ensembl 110 and swissprot Proteome:', len(peptides_df[(
+        peptides_df['Not unique SO input'] == False) & (peptides_df['Not unique'] == False)].index))
+
     ################################################################################
     # Get the SO proteins that have a peptide found
     ################################################################################
     peptides_df_with_unique_evidence = peptides_df[peptides_df['Not unique'] == False].reset_index(
         drop=True).copy()
 
+    print(f'Number of unique peptides that occur in a protein from the {cell_type} assembly:', sum(
+        peptides_df_with_unique_evidence[f'assembly contains {cell_type}']))
+
     peptides_df_with_unique_evidence['Protein Accessions list'] = peptides_df_with_unique_evidence.loc[:, 'Protein Accessions'].apply(
         lambda x: x.split('; ')).copy()
+
+    print('Number of unique SO peptides after filtering by protome:',
+          len(peptides_df_with_unique_evidence.index))
+    peptides_df_with_unique_evidence.to_csv(os.path.join(
+        outpath, f'{cell_type}_unique_so_peptides_after_proteome_filtering.csv'))
 
     peptides_with_unique_evidence_exploded_df = peptides_df_with_unique_evidence.explode(
         'Protein Accessions list')
@@ -189,11 +203,14 @@ def main(filtered_peptide_df, not_human_iso_filtered_df,
         proteins_with_unique_grouped.loc[protein,
                                          'Nr Unique Peptides'] = len(unique_sequences)
 
-        print('Number of SO proteins with 2 or more unique peptides:',
-              sum(proteins_with_unique_grouped['Nr Unique Peptides'] > 1))
+    print('Number of SO proteins with 2 or more unique peptides:',
+          sum(proteins_with_unique_grouped['Nr Unique Peptides'] > 1))
 
-        proteins_with_unique_grouped.to_csv(os.path.join(
-            outpath, f'{cell_type}_proteome_fasta_uniqueness_df.csv'))
+    print('Number of SO proteins with at least 1 unique and one other peptide:',
+          len(proteins_with_unique_grouped.index))
+
+    proteins_with_unique_grouped.to_csv(os.path.join(
+        outpath, f'{cell_type}_proteome_fasta_uniqueness_df.csv'))
 
 
 if __name__ == "__main__":

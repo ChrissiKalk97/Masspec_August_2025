@@ -49,6 +49,7 @@ def parse_arguments():
 # LOAD MS DATA
 ################################################################################
 def main(peptides_file, so_id_mapping_file, cell_type, outdir):
+    # read in peptides df
     peptides_df = pd.read_csv(peptides_file, sep='\t')
 
     peptides_df = peptides_df[['Protein Accessions',
@@ -61,17 +62,11 @@ def main(peptides_file, so_id_mapping_file, cell_type, outdir):
                                'Master Protein Accessions',
                                'Positions in Master Proteins',
                                'Sequence Length',
-                               #    'Abundances Scaled F1 126 Sample',
-                               #    'Abundances Scaled F1 127 Sample',
-                               #    'Abundances Scaled F1 128 Sample',
-                               #    'Abundances Scaled F1 129 Sample',
-                               #    'Abundances Scaled F1 130 Sample',
-                               #    'Abundances Scaled F1 131 Sample',
                                'Quan Info',
                                'PEP',
                                'q-Value',
                                'Confidence',
-                               'PSM Ambiguity']].copy()
+                               'PSM Ambiguity'] + [col for col in peptides_df.columns if 'Abundance' in col]].copy()
 
     print('total number of peptides identified (unfiltered):',
           len(peptides_df.index))
