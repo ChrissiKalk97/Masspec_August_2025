@@ -32,8 +32,9 @@ def parse_arguments():
 ################################################################################
 # PATH DEFINITIONS
 ################################################################################
-# unique_peptide_information_csv = '/Users/christina/Documents/own_data/Masspec/SO_with_reference_masspec_files_16_09_25/New_MS_run_19_09_25_tama_assembly_SOs/analysis_results_with_ref_19_09_25/huvec_validated_SO_protein_original_Ids_with_assembly.csv'
-# favorite_assembly = 'TAMA_HUVEC'
+unique_peptide_information_csv = '/Users/christina/Documents/own_data/Masspec/SO_with_reference_masspec_files_16_09_25/New_MS_run_19_09_25_tama_assembly_SOs/analysis_results_with_ref_19_09_25/huvec_validated_SO_protein_original_Ids_with_assembly.csv'
+favorite_assembly = 'TAMA_HUVEC'
+cell_type = 'HUVEC'
 
 
 def main(unique_peptide_information_csv, favorite_assembly, cell_type):
@@ -75,6 +76,9 @@ def main(unique_peptide_information_csv, favorite_assembly, cell_type):
     val_protein_no_redundancy_exploded_df = val_protein_no_redundancy_df.explode(
         ['Prot_start_position', 'Prot_end_position'])
 
+    # remove duplicates in case there were several same peptides identified
+    val_protein_no_redundancy_exploded_df = val_protein_no_redundancy_exploded_df.drop_duplicates()
+
     assembly_peptide_df_dict = {
         assembly: subdf for assembly, subdf in val_protein_no_redundancy_exploded_df.groupby('assembly')}
 
@@ -89,7 +93,7 @@ def main(unique_peptide_information_csv, favorite_assembly, cell_type):
             row['Prot_end_position']) * 3 + row['OrfStart'], axis=1)
 
         df[['gID|tID', 'Prot_start_position', 'Prot_end_position', 'OrfID']].to_csv(os.path.join(
-            outdir, f'{assembly}_unique_peptides_of_{cell_type}.bed'), sep='\t')
+            outdir, f'{assembly}_unique_peptides_of_{cell_type}.bed'), sep='\t', index=False, header=False)
 
     ################################################################################
     # LOAD MS DATA
