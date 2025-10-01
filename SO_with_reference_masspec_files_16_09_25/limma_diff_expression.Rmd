@@ -1,0 +1,134 @@
+---
+title: "differential_mass_spec_expression_analysis_limma"
+output: pdf_document
+date: "2025-09-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+#BiocManager::install("MSstats")
+```
+
+
+```{r imports, include=FALSE}
+library(limma)
+library(dplyr)
+library(MSstats)
+library(MSstatsConvert)
+library(tidyverse)
+```
+
+```{r}
+# all peptides, just contamination is filtered out already
+huvec_masspec_data <- read.csv("/Users/christina/Documents/own_data/Masspec/SO_with_reference_masspec_files_16_09_25/New_MS_run_19_09_25_tama_assembly_SOs/analysis_results_with_ref_19_09_25/huvec_PD_all_peptides_cont_filtered.csv", 
+                   header = TRUE,     # assumes first row has column names
+                   row.names = 1,     # often the first column is gene IDs
+                   check.names = FALSE, # preserve column names
+                   stringsAsFactors = FALSE)
+
+# Inspect
+dim(huvec_masspec_data)
+head(huvec_masspec_data)
+```
+
+
+```{r}
+quan_filtered_df <- huvec_masspec_data[
+  !(huvec_masspec_data$`Quan Info` %in% c("NoQuanValues", "ExcludedByMethod")),
+]
+
+# might need to map this back to index to find out which proteins these are
+# quan_filtered_df$`Positions in Proteins`
+
+quan_filtered_df
+```
+
+
+
+```{r}
+library(dplyr)
+
+peptides_quantified_df <- quan_filtered_df %>%
+  select(contains("Abundance F1 1"))
+
+peptides_quantified_df
+```
+```{r}
+# Example: 3 samples per condition A and B
+sample_conditions <- c("DMSO", "DHYPO", "DMSO", "DHYPO", "DMSO", "DHYPO")
+sample_batch <- c("2", "2", "3", "3", "4", "4")
+
+# Create design matrix
+design <- model.matrix(~ 0 + factor(sample_conditions) + factor(sample_batch))
+colnames(design) <- c("DHYPO", "DMSO", "batch3", "batch4")
+
+
+```
+
+
+
+```{r}
+
+expr_matrix <- as.matrix(peptides_quantified_df)
+
+log_expr <- log2(expr_matrix + 1)
+
+pca_res <- prcomp(t(log_expr), scale. = TRUE, center. = TRUE)
+
+library(ggplot2)
+
+# Get PCA scores
+pca_df <- data.frame(
+  Sample = colnames(log_expr),
+  PC1 = pca_res$x[,1],
+  PC2 = pca_res$x[,2]
+)
+
+
+pca_df$Group <- sample_conditions
+
+# Plot
+ggplot(pca_df, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  labs(title = "PCA of Peptide Abundance", x = "PC1", y = "PC2")
+```
+```{r}
+pca_df$Group <- sample_batch
+
+# Plot
+ggplot(pca_df, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  labs(title = "PCA of Peptide Abundance", x = "PC1", y = "PC2")
+```
+
+
+# Using DeSeq2 to plot PCA
+```{r}
+library(DESeq2)
+colData <- DataFrame(
+  conditions = sample_conditions,
+  batch     = sample_batch
+)
+rownames(colData) <- colnames(peptides_quantified_df)
+
+dds_gene <- DESeqDataSetFromMatrix(peptides_quantified_df, colData = colData, design = ~conditions+batch)
+```
+
+```{r}
+
+assay(vst_gene) <- removeBatchEffect(assay(vst_gene),
+                                batch = colData(vst_gene)$batch,
+                                design = model.matrix(~ conditions, colData(vst_gene)))
+
+# PCA on batch-corrected data
+plotPCA(vst_gene, intgroup = "conditions")
+```
+
